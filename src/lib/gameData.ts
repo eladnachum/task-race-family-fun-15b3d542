@@ -67,6 +67,38 @@ export const defaultTasks: Task[] = [
   { id: "task5", title: "Pack backpack", completed: false }
 ];
 
+// The fixed set of family members
+export const familyMembers = [
+  {
+    id: "dad",
+    name: "DAD",
+    avatar: avatars[0], // Fox
+    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    isWinner: false
+  },
+  {
+    id: "mom",
+    name: "MOM",
+    avatar: avatars[1], // Panda
+    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    isWinner: false
+  },
+  {
+    id: "adar",
+    name: "ADAR",
+    avatar: avatars[2], // Lion
+    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    isWinner: false
+  },
+  {
+    id: "danni",
+    name: "DANNI",
+    avatar: avatars[3], // Rabbit
+    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    isWinner: false
+  }
+];
+
 // Helper functions
 export const calculateProgress = (tasks: Task[]): number => {
   if (tasks.length === 0) return 0;
@@ -89,4 +121,21 @@ export const createPlayer = (name: string, avatar: Avatar): Player => {
     tasks: JSON.parse(JSON.stringify(defaultTasks)), // Deep clone default tasks
     isWinner: false
   };
+};
+
+// Function to merge saved tasks with default player structure
+export const syncPlayerTasks = (savedPlayers: Player[]): Player[] => {
+  return familyMembers.map(defaultPlayer => {
+    const savedPlayer = savedPlayers.find(p => p.id === defaultPlayer.id);
+    
+    if (savedPlayer) {
+      return {
+        ...defaultPlayer,
+        tasks: savedPlayer.tasks,
+        isWinner: savedPlayer.isWinner
+      };
+    }
+    
+    return defaultPlayer;
+  });
 };

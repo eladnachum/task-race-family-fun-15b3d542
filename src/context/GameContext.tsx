@@ -1,20 +1,19 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Avatar, Player, Task, avatars, createPlayer, checkWinner } from '@/lib/gameData';
+import { Avatar, Player, Task, avatars, familyMembers, syncPlayerTasks, checkWinner } from '@/lib/gameData';
 import { toast } from '@/components/ui/sonner';
 
 interface GameContextType {
   players: Player[];
   currentPlayer: Player | null;
-  showAvatarSelection: boolean;
+  showPlayerSelection: boolean;
   isGameActive: boolean;
   winner: Player | null;
-  avatars: Avatar[];
-  addPlayer: (name: string, avatar: Avatar) => void;
   selectCurrentPlayer: (playerId: string) => void;
   completeTask: (taskId: string) => void;
   resetGame: () => void;
-  setShowAvatarSelection: (show: boolean) => void;
+  setShowPlayerSelection: (show: boolean) => void;
+  syncFromLocalStorage: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -22,30 +21,48 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 // Local storage keys
 const STORAGE_KEYS = {
   PLAYERS: 'morning-tasks-race-players',
+  CURRENT_PLAYER: 'morning-tasks-race-current-player',
   GAME_ACTIVE: 'morning-tasks-race-active',
   WINNER: 'morning-tasks-race-winner'
 };
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<Player[]>(familyMembers);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
-  const [showAvatarSelection, setShowAvatarSelection] = useState(true);
-  const [isGameActive, setIsGameActive] = useState(false);
+  const [showPlayerSelection, setShowPlayerSelection] = useState(true);
+  const [isGameActive, setIsGameActive] = useState(true);
   const [winner, setWinner] = useState<Player | null>(null);
   
   // Load game state from localStorage on initial mount
   useEffect(() => {
     const storedPlayers = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+    const storedCurrentPlayer = localStorage.getItem(STORAGE_KEYS.CURRENT_PLAYER);
     const storedGameActive = localStorage.getItem(STORAGE_KEYS.GAME_ACTIVE);
     const storedWinner = localStorage.getItem(STORAGE_KEYS.WINNER);
     
     if (storedPlayers) {
-      const parsedPlayers = JSON.parse(storedPlayers) as Player[];
-      setPlayers(parsedPlayers);
-      
-      // If we have players but no current player selected, show the avatar selection
-      if (parsedPlayers.length > 0) {
-        setShowAvatarSelection(true);
+      try {
+        const parsedPlayers = JSON.parse(storedPlayers) as Player[];
+        // Merge saved tasks with default player structure
+        const syncedPlayers = syncPlayerTasks(parsedPlayers);
+        setPlayers(syncedPlayers);
+      } catch (err) {
+        console.error('Error parsing stored players:', err);
+        // Fallback to default players
+        setPlayers(familyMembers);
+      }
+    }
+    
+    if (storedCurrentPlayer) {
+      try {
+        const playerId = JSON.parse(storedCurrentPlayer);
+        const player = players.find(p => p.id === playerId);
+        if (player) {
+          setCurrentPlayer(player);
+          setShowPlayerSelection(false);
+        }
+      } catch (err) {
+        console.error('Error parsing current player:', err);
       }
     }
     
@@ -56,6 +73,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedWinner) {
       setWinner(JSON.parse(storedWinner));
     }
+    
+    // Set up polling to sync data between browsers
+    const syncInterval = setInterval(syncFromLocalStorage, 2000);
+    
+    return () => {
+      clearInterval(syncInterval);
+    };
   }, []);
   
   // Save players to localStorage whenever they change
@@ -64,6 +88,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
     }
   }, [players]);
+  
+  // Save current player to localStorage
+  useEffect(() => {
+    if (currentPlayer) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(currentPlayer.id));
+    }
+  }, [currentPlayer]);
   
   // Save game active state to localStorage
   useEffect(() => {
@@ -93,7 +124,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setWinner(gameWinner);
         setIsGameActive(false);
         
-        // Play victory fanfare sound (changed to a more cheerful sound)
+        // Play victory fanfare sound
         const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
         audio.play().catch(err => console.log('Audio play failed:', err));
         
@@ -104,42 +135,64 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [players, isGameActive]);
 
-  const addPlayer = (name: string, avatar: Avatar) => {
-    // Check if this player already exists
-    const existingPlayer = players.find(p => p.name.toLowerCase() === name.toLowerCase());
-    
-    if (existingPlayer) {
-      // Use existing player
-      setCurrentPlayer(existingPlayer);
-      setShowAvatarSelection(false);
-      
-      toast(`Welcome back, ${existingPlayer.name}!`, {
-        description: "Continue completing your tasks!"
-      });
-      return;
+  const syncFromLocalStorage = () => {
+    const storedPlayers = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+    if (storedPlayers) {
+      try {
+        const parsedPlayers = JSON.parse(storedPlayers) as Player[];
+        
+        // Check if stored data is newer than current state
+        let hasChanges = false;
+        
+        const updatedPlayers = players.map(currentPlayer => {
+          const storedPlayer = parsedPlayers.find(p => p.id === currentPlayer.id);
+          if (storedPlayer) {
+            // Check if stored player has different task completion state
+            const hasTaskChanges = JSON.stringify(storedPlayer.tasks) !== JSON.stringify(currentPlayer.tasks);
+            if (hasTaskChanges) {
+              hasChanges = true;
+              return {
+                ...currentPlayer,
+                tasks: storedPlayer.tasks,
+                isWinner: storedPlayer.isWinner
+              };
+            }
+          }
+          return currentPlayer;
+        });
+        
+        if (hasChanges) {
+          setPlayers(updatedPlayers);
+          
+          // Update current player if it's in the list
+          if (currentPlayer) {
+            const updatedCurrentPlayer = updatedPlayers.find(p => p.id === currentPlayer.id) || null;
+            if (updatedCurrentPlayer) {
+              setCurrentPlayer(updatedCurrentPlayer);
+            }
+          }
+        }
+        
+        // Check for winner status changes
+        const storedWinner = localStorage.getItem(STORAGE_KEYS.WINNER);
+        if (storedWinner && !winner) {
+          setWinner(JSON.parse(storedWinner));
+          setIsGameActive(false);
+        }
+      } catch (err) {
+        console.error('Error syncing from localStorage:', err);
+      }
     }
-    
-    // Create new player
-    const newPlayer = createPlayer(name, avatar);
-    const updatedPlayers = [...players, newPlayer];
-    setPlayers(updatedPlayers);
-    setCurrentPlayer(newPlayer);
-    setShowAvatarSelection(false);
-    
-    // If this is the first player, start the game
-    if (players.length === 0) {
-      setIsGameActive(true);
-    }
-    
-    toast(`${name} joined the game!`, {
-      description: "Complete your tasks as fast as you can!"
-    });
   };
 
   const selectCurrentPlayer = (playerId: string) => {
     const player = players.find(p => p.id === playerId) || null;
     setCurrentPlayer(player);
-    setShowAvatarSelection(false);
+    setShowPlayerSelection(false);
+    
+    toast(`Selected ${player?.name}`, {
+      description: "Complete your tasks as fast as you can!"
+    });
   };
 
   const completeTask = (taskId: string) => {
@@ -190,15 +243,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     players,
     currentPlayer,
-    showAvatarSelection,
+    showPlayerSelection,
     isGameActive,
     winner,
-    avatars,
-    addPlayer,
     selectCurrentPlayer,
     completeTask,
     resetGame,
-    setShowAvatarSelection
+    setShowPlayerSelection,
+    syncFromLocalStorage
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

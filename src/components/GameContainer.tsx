@@ -7,19 +7,19 @@ import WinnerCelebration from './WinnerCelebration';
 import { Button } from '@/components/ui/button';
 
 const GameContainer = () => {
-  const { showAvatarSelection, players, currentPlayer, resetGame, winner, setShowAvatarSelection } = useGame();
+  const { showPlayerSelection, players, currentPlayer, resetGame, winner, setShowPlayerSelection, syncFromLocalStorage } = useGame();
   
-  // Show avatar selection on initial load or when explicitly requested
-  if (showAvatarSelection) {
-    return (
-      <div className="container max-w-6xl mx-auto py-10 px-4">
-        <AvatarSelection />
-      </div>
-    );
-  }
+  // Regular sync for multiplayer - every 5 seconds check for updates from other browsers
+  React.useEffect(() => {
+    const intervalId = setInterval(() => {
+      syncFromLocalStorage();
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, [syncFromLocalStorage]);
   
-  // If no players yet, show avatar selection
-  if (players.length === 0) {
+  // Show player selection on initial load or when explicitly requested
+  if (showPlayerSelection) {
     return (
       <div className="container max-w-6xl mx-auto py-10 px-4">
         <AvatarSelection />
@@ -35,7 +35,7 @@ const GameContainer = () => {
         <div className="flex gap-2">
           <Button 
             variant="outline"
-            onClick={() => setShowAvatarSelection(true)}
+            onClick={() => setShowPlayerSelection(true)}
             className="border-game-purple text-game-purple hover:bg-game-purple/5"
           >
             Switch Player
@@ -57,7 +57,7 @@ const GameContainer = () => {
             <TaskList />
           ) : (
             <div className="h-full flex items-center justify-center">
-              <Button onClick={() => setShowAvatarSelection(true)}>
+              <Button onClick={() => setShowPlayerSelection(true)}>
                 Select a Player
               </Button>
             </div>

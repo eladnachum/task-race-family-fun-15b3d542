@@ -1,67 +1,32 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import { calculateProgress } from '@/lib/gameData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
 
 const FamilyProgress = () => {
-  const { players, currentPlayer, selectCurrentPlayer, setShowAvatarSelection } = useGame();
-  // Add state to force re-renders for progress updates
-  const [, setForceUpdate] = useState(0);
+  const { players, currentPlayer, selectCurrentPlayer, syncFromLocalStorage } = useGame();
   
-  // Set up polling to check for updates from other browsers
+  // Check for updates more frequently in this component
   useEffect(() => {
     const checkForUpdates = () => {
-      const storedPlayers = localStorage.getItem('morning-tasks-race-players');
-      if (storedPlayers) {
-        try {
-          // Force re-render to update UI with latest localStorage data
-          setForceUpdate(prev => prev + 1);
-        } catch (err) {
-          console.error('Error parsing stored players:', err);
-        }
-      }
+      syncFromLocalStorage();
     };
     
-    // Check every 2 seconds for updates
-    const intervalId = setInterval(checkForUpdates, 2000);
+    // Check every second for updates in this component
+    const intervalId = setInterval(checkForUpdates, 1000);
     
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
-  
-  if (players.length === 0) {
-    return (
-      <Card className="h-full">
-        <CardContent className="h-full flex flex-col items-center justify-center">
-          <p className="text-gray-500 mb-4">No family members yet</p>
-          <Button 
-            onClick={() => setShowAvatarSelection(true)}
-            className="bg-game-purple hover:bg-game-purple/90"
-          >
-            Add Family Member
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  }, [syncFromLocalStorage]);
   
   return (
     <Card className="h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="text-xl flex justify-between items-center">
+        <CardTitle className="text-xl">
           <span>Family Progress</span>
-          <Button 
-            size="sm" 
-            variant="outline" 
-            onClick={() => setShowAvatarSelection(true)}
-            className="text-xs"
-          >
-            + Add Member
-          </Button>
         </CardTitle>
       </CardHeader>
       
