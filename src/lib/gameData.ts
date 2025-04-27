@@ -61,7 +61,7 @@ export const avatars: Avatar[] = [
 
 export const defaultTasks: Task[] = [
   { id: "task1", title: "צחצוח שיניים ופנים", completed: false },
-  { id: "task2", title: "להתלבש ", completed: false },
+  { id: "task2", title: " 🐵 להתלבש ", completed: false },
   { id: "task3", title: "Get dressed", completed: false },
   { id: "task4", title: "Eat breakfast", completed: false },
   { id: "task5", title: "Pack backpack", completed: false }
