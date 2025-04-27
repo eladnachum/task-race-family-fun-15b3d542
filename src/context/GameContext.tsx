@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Avatar, Player, Task, avatars, createPlayer, checkWinner } from '@/lib/gameData';
 import { toast } from '@/components/ui/sonner';
@@ -40,9 +39,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setWinner(gameWinner);
         setIsGameActive(false);
         
-        // Play victory sound
-        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3');
-        audio.play().catch(err => console.log('Audio play failed', err));
+        // Play victory fanfare sound (changed to a more cheerful sound)
+        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+        audio.play().catch(err => console.log('Audio play failed:', err));
         
         toast(`${gameWinner.name} wins the Morning Tasks Race! 🎉`, {
           description: "All tasks completed! Great job!"

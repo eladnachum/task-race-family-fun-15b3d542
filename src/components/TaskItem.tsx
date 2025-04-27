@@ -18,6 +18,10 @@ const TaskItem = ({ task }: TaskItemProps) => {
     setIsAnimating(true);
     completeTask(task.id);
     
+    // Play cheerful completion sound
+    const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3');
+    audio.play().catch(err => console.log('Audio play failed:', err));
+    
     // Reset animation state after animation completes
     setTimeout(() => {
       setIsAnimating(false);
