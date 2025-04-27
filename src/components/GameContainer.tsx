@@ -6,15 +6,16 @@ import TaskList from './TaskList';
 import FamilyProgress from './FamilyProgress';
 import WinnerCelebration from './WinnerCelebration';
 import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
 const GameContainer = () => {
   const { showPlayerSelection, players, currentPlayer, resetGame, winner, setShowPlayerSelection, syncFromLocalStorage } = useGame();
   
-  // Regular sync for multiplayer - every 5 seconds check for updates from other browsers
+  // More frequent sync for real-time updates
   useEffect(() => {
     const intervalId = setInterval(() => {
       syncFromLocalStorage();
-    }, 5000);
+    }, 2000); // Check every 2 seconds instead of 5
     
     return () => clearInterval(intervalId);
   }, [syncFromLocalStorage]);
@@ -28,10 +29,27 @@ const GameContainer = () => {
     );
   }
   
+  // Show loading if players aren't loaded yet
+  if (players.length === 0) {
+    return (
+      <div className="container h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-game-purple" />
+          <p className="text-xl">Connecting to game session...</p>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="container max-w-7xl mx-auto py-6 px-4">
       <header className="mb-6 flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-game-purple">Morning Tasks Race</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-game-purple">Morning Tasks Race</h1>
+          <p className="text-sm text-gray-500">
+            {currentPlayer ? `Playing as ${currentPlayer.name}` : 'Select a player to start'}
+          </p>
+        </div>
         
         <div className="flex gap-2">
           <Button 
