@@ -1,5 +1,5 @@
 
-import React from 'react';  // Add this import
+import React, { useEffect } from 'react';  // Explicitly import React and useEffect
 import { useGame } from '@/context/GameContext';
 import AvatarSelection from './AvatarSelection';
 import TaskList from './TaskList';
@@ -11,7 +11,7 @@ const GameContainer = () => {
   const { showPlayerSelection, players, currentPlayer, resetGame, winner, setShowPlayerSelection, syncFromLocalStorage } = useGame();
   
   // Regular sync for multiplayer - every 5 seconds check for updates from other browsers
-  React.useEffect(() => {
+  useEffect(() => {
     const intervalId = setInterval(() => {
       syncFromLocalStorage();
     }, 5000);
