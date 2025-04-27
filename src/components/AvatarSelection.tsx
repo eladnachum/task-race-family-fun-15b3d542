@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar } from '@/lib/gameData';
 
 const AvatarSelection = () => {
-  const { avatars, addPlayer } = useGame();
+  const { avatars, addPlayer, players, setShowAvatarSelection } = useGame();
   const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
   const [playerName, setPlayerName] = useState('');
 
@@ -76,7 +76,7 @@ const AvatarSelection = () => {
         </form>
       </CardContent>
       
-      {players?.length > 0 && (
+      {players.length > 0 && (
         <CardFooter className="flex flex-col">
           <div className="text-sm text-gray-500 mb-2">
             {players.length} player(s) already in the game
