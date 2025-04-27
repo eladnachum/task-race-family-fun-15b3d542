@@ -1,7 +1,7 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Avatar, Player, Task, avatars, familyMembers, syncPlayerTasks, checkWinner } from '@/lib/gameData';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/lib/supabase';
 
 interface GameContextType {
   players: Player[];
@@ -18,9 +18,13 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Database table name
-const GAME_TABLE = 'morning_tasks_game';
-const CURRENT_GAME_ID = 'current-game'; // We'll use a single game ID for simplicity
+// Local storage keys
+const STORAGE_KEYS = {
+  PLAYERS: 'morning-tasks-race-players',
+  CURRENT_PLAYER: 'morning-tasks-race-current-player',
+  GAME_ACTIVE: 'morning-tasks-race-active',
+  WINNER: 'morning-tasks-race-winner'
+};
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [players, setPlayers] = useState<Player[]>(familyMembers);
@@ -29,169 +33,155 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isGameActive, setIsGameActive] = useState(true);
   const [winner, setWinner] = useState<Player | null>(null);
   
-  // Initial data fetch from Supabase on mount
+  // Load game state from localStorage on initial mount
   useEffect(() => {
-    const fetchGameData = async () => {
+    const storedPlayers = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+    const storedCurrentPlayer = localStorage.getItem(STORAGE_KEYS.CURRENT_PLAYER);
+    const storedGameActive = localStorage.getItem(STORAGE_KEYS.GAME_ACTIVE);
+    const storedWinner = localStorage.getItem(STORAGE_KEYS.WINNER);
+    
+    if (storedPlayers) {
       try {
-        const { data, error } = await supabase
-          .from(GAME_TABLE)
-          .select('*')
-          .eq('id', CURRENT_GAME_ID)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching game data:', error);
-          // Create a new game if one doesn't exist
-          if (error.code === 'PGRST116') { // Record not found
-            await initializeGame();
-          }
-          return;
-        }
-        
-        if (data) {
-          const gameData = data.game_data;
-          setPlayers(gameData.players || familyMembers);
-          setIsGameActive(gameData.isGameActive !== undefined ? gameData.isGameActive : true);
-          if (gameData.winner) {
-            setWinner(gameData.winner);
-          }
+        const parsedPlayers = JSON.parse(storedPlayers) as Player[];
+        // Merge saved tasks with default player structure
+        const syncedPlayers = syncPlayerTasks(parsedPlayers);
+        setPlayers(syncedPlayers);
+      } catch (err) {
+        console.error('Error parsing stored players:', err);
+        // Fallback to default players
+        setPlayers(familyMembers);
+      }
+    }
+    
+    if (storedCurrentPlayer) {
+      try {
+        const playerId = JSON.parse(storedCurrentPlayer);
+        const player = players.find(p => p.id === playerId);
+        if (player) {
+          setCurrentPlayer(player);
+          setShowPlayerSelection(false);
         }
       } catch (err) {
-        console.error('Failed to fetch game data:', err);
+        console.error('Error parsing current player:', err);
       }
-    };
+    }
     
-    const initializeGame = async () => {
+    if (storedGameActive) {
+      setIsGameActive(JSON.parse(storedGameActive));
+    }
+    
+    if (storedWinner) {
+      setWinner(JSON.parse(storedWinner));
+    }
+    
+    // Set up polling to sync data between browsers
+    const syncInterval = setInterval(syncFromLocalStorage, 2000);
+    
+    return () => {
+      clearInterval(syncInterval);
+    };
+  }, []);
+  
+  // Save players to localStorage whenever they change
+  useEffect(() => {
+    if (players.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+    }
+  }, [players]);
+  
+  // Save current player to localStorage
+  useEffect(() => {
+    if (currentPlayer) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_PLAYER, JSON.stringify(currentPlayer.id));
+    }
+  }, [currentPlayer]);
+  
+  // Save game active state to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.GAME_ACTIVE, JSON.stringify(isGameActive));
+  }, [isGameActive]);
+  
+  // Save winner to localStorage
+  useEffect(() => {
+    if (winner) {
+      localStorage.setItem(STORAGE_KEYS.WINNER, JSON.stringify(winner));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.WINNER);
+    }
+  }, [winner]);
+  
+  // Check for winner whenever tasks are updated
+  useEffect(() => {
+    if (isGameActive && players.length > 0) {
+      const gameWinner = checkWinner(players);
+      
+      if (gameWinner) {
+        // Update the player with isWinner flag
+        setPlayers(players.map(player => 
+          player.id === gameWinner.id ? { ...player, isWinner: true } : player
+        ));
+        
+        setWinner(gameWinner);
+        setIsGameActive(false);
+        
+        // Play victory fanfare sound
+        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
+        audio.play().catch(err => console.log('Audio play failed:', err));
+        
+        toast(`${gameWinner.name} wins the Morning Tasks Race! 🎉`, {
+          description: "All tasks completed! Great job!"
+        });
+      }
+    }
+  }, [players, isGameActive]);
+
+  const syncFromLocalStorage = () => {
+    const storedPlayers = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+    if (storedPlayers) {
       try {
-        const { error } = await supabase
-          .from(GAME_TABLE)
-          .insert({
-            id: CURRENT_GAME_ID,
-            game_data: {
-              players: familyMembers,
-              isGameActive: true,
-              winner: null,
-            },
-            created_at: new Date().toISOString()
-          });
+        const parsedPlayers = JSON.parse(storedPlayers) as Player[];
         
-        if (error) {
-          console.error('Error initializing game:', error);
-          return;
-        }
+        // Check if stored data is newer than current state
+        let hasChanges = false;
         
-        console.log('New game initialized');
-      } catch (err) {
-        console.error('Failed to initialize game:', err);
-      }
-    };
-    
-    fetchGameData();
-    
-    // Subscribe to real-time updates from Supabase
-    const subscription = supabase
-      .channel('game-updates')
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: GAME_TABLE,
-        filter: `id=eq.${CURRENT_GAME_ID}`
-      }, (payload) => {
-        console.log('Real-time update received:', payload);
+        const updatedPlayers = players.map(currentPlayer => {
+          const storedPlayer = parsedPlayers.find(p => p.id === currentPlayer.id);
+          if (storedPlayer) {
+            // Check if stored player has different task completion state
+            const hasTaskChanges = JSON.stringify(storedPlayer.tasks) !== JSON.stringify(currentPlayer.tasks);
+            if (hasTaskChanges) {
+              hasChanges = true;
+              return {
+                ...currentPlayer,
+                tasks: storedPlayer.tasks,
+                isWinner: storedPlayer.isWinner
+              };
+            }
+          }
+          return currentPlayer;
+        });
         
-        const gameData = payload.new.game_data;
-        if (gameData) {
-          setPlayers(gameData.players);
-          setIsGameActive(gameData.isGameActive);
+        if (hasChanges) {
+          setPlayers(updatedPlayers);
           
-          // Update current player reference if it exists
+          // Update current player if it's in the list
           if (currentPlayer) {
-            const updatedCurrentPlayer = gameData.players.find(p => p.id === currentPlayer.id);
+            const updatedCurrentPlayer = updatedPlayers.find(p => p.id === currentPlayer.id) || null;
             if (updatedCurrentPlayer) {
               setCurrentPlayer(updatedCurrentPlayer);
             }
           }
-          
-          // Check for winner updates
-          if (gameData.winner && !winner) {
-            setWinner(gameData.winner);
-            
-            // Play victory fanfare sound
-            const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-            audio.play().catch(err => console.log('Audio play failed:', err));
-            
-            toast(`${gameData.winner.name} wins the Morning Tasks Race! 🎉`, {
-              description: "All tasks completed! Great job!"
-            });
-          }
-        }
-      })
-      .subscribe();
-      
-    // Clean up subscription on unmount
-    return () => {
-      supabase.channel('game-updates').unsubscribe();
-    };
-  }, [currentPlayer]);
-  
-  // Update Supabase with game state
-  const updateGameState = async (gameData: any) => {
-    try {
-      const { error } = await supabase
-        .from(GAME_TABLE)
-        .update({ 
-          game_data: gameData,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', CURRENT_GAME_ID);
-      
-      if (error) {
-        console.error('Error updating game state:', error);
-        return false;
-      }
-      
-      return true;
-    } catch (err) {
-      console.error('Failed to update game state:', err);
-      return false;
-    }
-  };
-  
-  // Legacy function now calling Supabase update
-  const syncFromLocalStorage = async () => {
-    // This function no longer pulls from localStorage, but we keep it for API compatibility
-    try {
-      const { data, error } = await supabase
-        .from(GAME_TABLE)
-        .select('*')
-        .eq('id', CURRENT_GAME_ID)
-        .single();
-      
-      if (error || !data) {
-        console.error('Error syncing from Supabase:', error);
-        return;
-      }
-      
-      const gameData = data.game_data;
-      if (gameData) {
-        setPlayers(gameData.players);
-        
-        // Update current player if it's in the list
-        if (currentPlayer) {
-          const updatedCurrentPlayer = gameData.players.find(p => p.id === currentPlayer.id);
-          if (updatedCurrentPlayer) {
-            setCurrentPlayer(updatedCurrentPlayer);
-          }
         }
         
-        // Update winner state
-        if (gameData.winner) {
-          setWinner(gameData.winner);
+        // Check for winner status changes
+        const storedWinner = localStorage.getItem(STORAGE_KEYS.WINNER);
+        if (storedWinner && !winner) {
+          setWinner(JSON.parse(storedWinner));
           setIsGameActive(false);
         }
+      } catch (err) {
+        console.error('Error syncing from localStorage:', err);
       }
-    } catch (err) {
-      console.error('Error syncing from Supabase:', err);
     }
   };
 
@@ -205,7 +195,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const completeTask = async (taskId: string) => {
+  const completeTask = (taskId: string) => {
     if (!currentPlayer) return;
     
     // Create a new array of tasks with the updated task
@@ -225,52 +215,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
     
     setPlayers(updatedPlayers);
+    
+    // Update the current player
     setCurrentPlayer(updatedPlayer);
     
-    // Check for winner
-    const gameWinner = checkWinner(updatedPlayers);
-    let updatedWinner = null;
-    
-    if (gameWinner && isGameActive) {
-      // Update the player with isWinner flag
-      const finalPlayers = updatedPlayers.map(player => 
-        player.id === gameWinner.id ? { ...player, isWinner: true } : player
-      );
-      
-      setPlayers(finalPlayers);
-      setWinner(gameWinner);
-      setIsGameActive(false);
-      updatedWinner = gameWinner;
-      
-      // Update Supabase with the winner and final players
-      await updateGameState({
-        players: finalPlayers,
-        isGameActive: false,
-        winner: gameWinner
-      });
-      
-      // Play victory fanfare sound - will be played on this client only
-      const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-      audio.play().catch(err => console.log('Audio play failed:', err));
-      
-      toast(`${gameWinner.name} wins the Morning Tasks Race! 🎉`, {
-        description: "All tasks completed! Great job!"
-      });
-    } else {
-      // Update Supabase with just the updated players
-      await updateGameState({
-        players: updatedPlayers,
-        isGameActive,
-        winner: winner
-      });
-    }
-    
-    // Play sound effect for task completion - local client only
+    // Play sound effect for task completion
     const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3');
     audio.play().catch(err => console.log('Audio play failed', err));
   };
 
-  const resetGame = async () => {
+  const resetGame = () => {
     const resetPlayers = players.map(player => ({
       ...player,
       tasks: player.tasks.map(task => ({ ...task, completed: false })),
@@ -280,13 +234,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPlayers(resetPlayers);
     setWinner(null);
     setIsGameActive(true);
-    
-    // Update Supabase with reset game state
-    await updateGameState({
-      players: resetPlayers,
-      isGameActive: true,
-      winner: null
-    });
     
     toast("Game Reset! Ready, Set, Go!", {
       description: "Everyone's tasks have been reset. Good luck!"

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { useGame } from '@/context/GameContext';
 import { Task } from '@/lib/gameData';
@@ -9,22 +9,8 @@ interface TaskItemProps {
 }
 
 const TaskItem = ({ task }: TaskItemProps) => {
-  const { completeTask, currentPlayer } = useGame();
+  const { completeTask } = useGame();
   const [isAnimating, setIsAnimating] = useState(false);
-  const [wasRecentlyCompleted, setWasRecentlyCompleted] = useState(false);
-  
-  // Track if this task was recently completed by someone else
-  useEffect(() => {
-    if (task.completed && !wasRecentlyCompleted && !isAnimating) {
-      setWasRecentlyCompleted(true);
-      
-      // Flash effect for tasks completed by others
-      setIsAnimating(true);
-      setTimeout(() => {
-        setIsAnimating(false);
-      }, 1000);
-    }
-  }, [task.completed, wasRecentlyCompleted, isAnimating]);
   
   const handleTaskComplete = () => {
     if (task.completed) return;
@@ -47,7 +33,6 @@ const TaskItem = ({ task }: TaskItemProps) => {
       className={`task-item relative flex items-center p-4 mb-3 rounded-xl border-2 transition-all cursor-pointer
         ${task.completed ? 'border-green-300 bg-green-50 completed' : 'border-gray-200 hover:border-game-purple'}
         ${isAnimating ? 'transform scale-105' : ''}
-        ${wasRecentlyCompleted && isAnimating ? 'animate-pulse bg-yellow-50' : ''}
       `}
       onClick={handleTaskComplete}
     >
