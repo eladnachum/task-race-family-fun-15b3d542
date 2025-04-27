@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom game colors
+				game: {
+					purple: '#9b87f5',
+					'light-purple': '#D6BCFA',
+					'soft-green': '#F2FCE2',
+					'soft-yellow': '#FEF7CD',
+					'soft-pink': '#FFDEE2',
+					'soft-blue': '#D3E4FD',
+					'soft-peach': '#FDE1D3',
+					orange: '#F97316',
+					pink: '#D946EF',
+					'sky-blue': '#33C3F0',
 				}
 			},
 			borderRadius: {
@@ -84,11 +98,29 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'confetti': {
+					'0%': { transform: 'translateY(0) rotate(0)' },
+					'100%': { transform: 'translateY(100vh) rotate(720deg)' }
+				},
+				'bounce': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-20px)' }
+				},
+				'scale-up': {
+					'0%': { transform: 'scale(0)' },
+					'70%': { transform: 'scale(1.1)' },
+					'100%': { transform: 'scale(1)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'confetti-slow': 'confetti 5s linear forwards',
+				'confetti-medium': 'confetti 3s linear forwards',
+				'confetti-fast': 'confetti 2s linear forwards',
+				'bounce': 'bounce 0.6s ease infinite',
+				'scale-up': 'scale-up 0.4s ease forwards'
 			}
 		}
 	},
