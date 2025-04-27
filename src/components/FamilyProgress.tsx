@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from 'react';
 import { useGame } from '@/context/GameContext';
 import { calculateProgress } from '@/lib/gameData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,30 @@ import { Button } from '@/components/ui/button';
 
 const FamilyProgress = () => {
   const { players, currentPlayer, selectCurrentPlayer, setShowAvatarSelection } = useGame();
+  // Add state to force re-renders for progress updates
+  const [, setForceUpdate] = useState(0);
+  
+  // Set up polling to check for updates from other browsers
+  useEffect(() => {
+    const checkForUpdates = () => {
+      const storedPlayers = localStorage.getItem('morning-tasks-race-players');
+      if (storedPlayers) {
+        try {
+          // Force re-render to update UI with latest localStorage data
+          setForceUpdate(prev => prev + 1);
+        } catch (err) {
+          console.error('Error parsing stored players:', err);
+        }
+      }
+    };
+    
+    // Check every 2 seconds for updates
+    const intervalId = setInterval(checkForUpdates, 2000);
+    
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
   
   if (players.length === 0) {
     return (

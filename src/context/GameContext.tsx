@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Avatar, Player, Task, avatars, createPlayer, checkWinner } from '@/lib/gameData';
 import { toast } from '@/components/ui/sonner';
@@ -18,12 +19,65 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+// Local storage keys
+const STORAGE_KEYS = {
+  PLAYERS: 'morning-tasks-race-players',
+  GAME_ACTIVE: 'morning-tasks-race-active',
+  WINNER: 'morning-tasks-race-winner'
+};
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [showAvatarSelection, setShowAvatarSelection] = useState(true);
   const [isGameActive, setIsGameActive] = useState(false);
   const [winner, setWinner] = useState<Player | null>(null);
+  
+  // Load game state from localStorage on initial mount
+  useEffect(() => {
+    const storedPlayers = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+    const storedGameActive = localStorage.getItem(STORAGE_KEYS.GAME_ACTIVE);
+    const storedWinner = localStorage.getItem(STORAGE_KEYS.WINNER);
+    
+    if (storedPlayers) {
+      const parsedPlayers = JSON.parse(storedPlayers) as Player[];
+      setPlayers(parsedPlayers);
+      
+      // If we have players but no current player selected, show the avatar selection
+      if (parsedPlayers.length > 0) {
+        setShowAvatarSelection(true);
+      }
+    }
+    
+    if (storedGameActive) {
+      setIsGameActive(JSON.parse(storedGameActive));
+    }
+    
+    if (storedWinner) {
+      setWinner(JSON.parse(storedWinner));
+    }
+  }, []);
+  
+  // Save players to localStorage whenever they change
+  useEffect(() => {
+    if (players.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+    }
+  }, [players]);
+  
+  // Save game active state to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.GAME_ACTIVE, JSON.stringify(isGameActive));
+  }, [isGameActive]);
+  
+  // Save winner to localStorage
+  useEffect(() => {
+    if (winner) {
+      localStorage.setItem(STORAGE_KEYS.WINNER, JSON.stringify(winner));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.WINNER);
+    }
+  }, [winner]);
   
   // Check for winner whenever tasks are updated
   useEffect(() => {
@@ -51,8 +105,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [players, isGameActive]);
 
   const addPlayer = (name: string, avatar: Avatar) => {
+    // Check if this player already exists
+    const existingPlayer = players.find(p => p.name.toLowerCase() === name.toLowerCase());
+    
+    if (existingPlayer) {
+      // Use existing player
+      setCurrentPlayer(existingPlayer);
+      setShowAvatarSelection(false);
+      
+      toast(`Welcome back, ${existingPlayer.name}!`, {
+        description: "Continue completing your tasks!"
+      });
+      return;
+    }
+    
+    // Create new player
     const newPlayer = createPlayer(name, avatar);
-    setPlayers([...players, newPlayer]);
+    const updatedPlayers = [...players, newPlayer];
+    setPlayers(updatedPlayers);
     setCurrentPlayer(newPlayer);
     setShowAvatarSelection(false);
     
@@ -69,6 +139,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const selectCurrentPlayer = (playerId: string) => {
     const player = players.find(p => p.id === playerId) || null;
     setCurrentPlayer(player);
+    setShowAvatarSelection(false);
   };
 
   const completeTask = (taskId: string) => {
@@ -86,9 +157,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     
     // Update the players array with the new player object
-    setPlayers(players.map(player => 
+    const updatedPlayers = players.map(player => 
       player.id === currentPlayer.id ? updatedPlayer : player
-    ));
+    );
+    
+    setPlayers(updatedPlayers);
     
     // Update the current player
     setCurrentPlayer(updatedPlayer);
@@ -99,11 +172,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetGame = () => {
-    setPlayers(players.map(player => ({
+    const resetPlayers = players.map(player => ({
       ...player,
       tasks: player.tasks.map(task => ({ ...task, completed: false })),
       isWinner: false
-    })));
+    }));
+    
+    setPlayers(resetPlayers);
     setWinner(null);
     setIsGameActive(true);
     
