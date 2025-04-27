@@ -1,4 +1,5 @@
 
+import React from 'react';  // Add this import
 import { useGame } from '@/context/GameContext';
 import AvatarSelection from './AvatarSelection';
 import TaskList from './TaskList';
