@@ -59,6 +59,7 @@ export const avatars: Avatar[] = [
   }
 ];
 
+// Define tasks - this will be the single source of truth
 export const defaultTasks: Task[] = [
   { id: "task1", title: " 🦷🚰 צחצוח שיניים ופנים", completed: false },
   { id: "task2", title: " 👕 להתלבש ", completed: false },
@@ -66,34 +67,39 @@ export const defaultTasks: Task[] = [
   { id: "task4", title: "🛏 לסדר מיטה", completed: false },
 ];
 
+// Helper function to deep clone tasks array
+const cloneTasks = (): Task[] => {
+  return defaultTasks.map(task => ({...task}));
+};
+
 // The fixed set of family members
 export const familyMembers = [
   {
     id: "dad",
     name: "DAD",
     avatar: avatars[0], // Fox
-    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    tasks: cloneTasks(),
     isWinner: false
   },
   {
     id: "mom",
     name: "MOM",
     avatar: avatars[1], // Panda
-    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    tasks: cloneTasks(),
     isWinner: false
   },
   {
     id: "adar",
     name: "ADAR",
     avatar: avatars[2], // Lion
-    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    tasks: cloneTasks(),
     isWinner: false
   },
   {
     id: "danni",
     name: "DANNI",
     avatar: avatars[3], // Rabbit
-    tasks: JSON.parse(JSON.stringify(defaultTasks)),
+    tasks: cloneTasks(),
     isWinner: false
   }
 ];
@@ -117,7 +123,7 @@ export const createPlayer = (name: string, avatar: Avatar): Player => {
     id: crypto.randomUUID(),
     name,
     avatar,
-    tasks: JSON.parse(JSON.stringify(defaultTasks)), // Deep clone default tasks
+    tasks: cloneTasks(), // Use the helper to avoid reference issues
     isWinner: false
   };
 };

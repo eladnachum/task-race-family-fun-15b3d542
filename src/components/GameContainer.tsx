@@ -1,19 +1,28 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { useGame } from '@/context/GameContext';
 import AvatarSelection from './AvatarSelection';
 import TaskList from './TaskList';
 import FamilyProgress from './FamilyProgress';
 import WinnerCelebration from './WinnerCelebration';
 import { Button } from '@/components/ui/button';
+import { Volume2, VolumeX } from 'lucide-react';
 import SoundManager from '@/lib/sounds';
 
 const GameContainer = () => {
   const { showPlayerSelection, players, currentPlayer, resetGame, winner, setShowPlayerSelection, syncFromLocalStorage } = useGame();
+  const [isMuted, setIsMuted] = useState(false);
   
   // Preload sounds and play intro music on mount
   useEffect(() => {
     SoundManager.preloadSounds();
-    SoundManager.playIntroMusic();
+    
+    // Small delay to ensure audio context is ready
+    const timer = setTimeout(() => {
+      SoundManager.playIntroMusic();
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   // Regular sync for multiplayer - every 5 seconds check for updates from other browsers
@@ -34,10 +43,25 @@ const GameContainer = () => {
     }
   }, [winner, players, setShowPlayerSelection, currentPlayer]);
   
+  const toggleSound = () => {
+    const newMutedState = SoundManager.toggleMute();
+    setIsMuted(newMutedState);
+  };
+  
   // Show player selection on initial load or when explicitly requested
   if (showPlayerSelection) {
     return (
       <div className="container max-w-6xl mx-auto py-10 px-4">
+        <div className="absolute top-4 right-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSound}
+            title={isMuted ? "Unmute sounds" : "Mute sounds"}
+          >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </Button>
+        </div>
         <AvatarSelection />
       </div>
     );
@@ -48,7 +72,17 @@ const GameContainer = () => {
       <header className="mb-6 flex justify-between items-center">
         <h1 className="text-3xl font-bold text-game-purple">Morning Tasks Race</h1>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSound}
+            title={isMuted ? "Unmute sounds" : "Mute sounds"}
+            className="mr-2"
+          >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </Button>
+          
           <Button 
             variant="outline"
             onClick={() => setShowPlayerSelection(true)}

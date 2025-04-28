@@ -9,36 +9,79 @@ const SOUND_URLS = {
 
 class SoundManager {
   private static audioElements: { [key: string]: HTMLAudioElement } = {};
+  private static initialized = false;
+  private static muted = false;
 
   static preloadSounds() {
+    if (this.initialized) return;
+    
     Object.entries(SOUND_URLS).forEach(([key, url]) => {
-      const audio = new Audio(url);
+      const audio = new Audio();
+      audio.src = url;
       audio.preload = 'auto';
+      
+      // Create a "loading" promise for this audio element
+      audio.load();
+      
       this.audioElements[key] = audio;
     });
+    
+    this.initialized = true;
+    console.log('Sound Manager: All sounds preloaded');
   }
 
   static playSound(soundName: keyof typeof SOUND_URLS) {
+    if (this.muted) return;
+    
+    // If not initialized, initialize first
+    if (!this.initialized) {
+      this.preloadSounds();
+    }
+    
     const audio = this.audioElements[soundName];
     if (audio) {
-      audio.currentTime = 0;
-      audio.play().catch(err => console.log('Audio play failed:', err));
+      // Create a new audio element each time to allow for overlapping sounds
+      const tempAudio = new Audio(audio.src);
+      tempAudio.volume = soundName === 'intro' ? 0.5 : 0.8;
+      
+      tempAudio.play()
+        .then(() => console.log(`Playing sound: ${soundName}`))
+        .catch(err => console.error(`Audio play failed for ${soundName}:`, err));
+    } else {
+      console.warn(`Sound ${soundName} not found`);
     }
   }
 
   static playIntroMusic() {
-    const audio = this.audioElements.intro;
-    if (audio) {
-      audio.currentTime = 0;
-      audio.volume = 0.5; // Lower volume for background music
-      audio.play().catch(err => console.log('Audio play failed:', err));
-      
-      // Stop after 3 seconds
-      setTimeout(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      }, 3000);
+    if (this.muted) return;
+    
+    // If not initialized, initialize first
+    if (!this.initialized) {
+      this.preloadSounds();
     }
+    
+    // Create a new audio for intro to avoid issues with reuse
+    const tempAudio = new Audio(SOUND_URLS.intro);
+    tempAudio.volume = 0.5; // Lower volume for background music
+    
+    tempAudio.play()
+      .then(() => console.log('Playing intro music'))
+      .catch(err => console.error('Intro music play failed:', err));
+    
+    // Stop after 3 seconds
+    setTimeout(() => {
+      tempAudio.pause();
+      tempAudio.currentTime = 0;
+    }, 3000);
+  }
+  
+  static toggleMute() {
+    this.muted = !this.muted;
+    return this.muted;
+  }
+  
+  static isMuted() {
+    return this.muted;
   }
 }
 
