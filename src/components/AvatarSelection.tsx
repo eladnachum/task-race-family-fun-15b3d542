@@ -2,9 +2,15 @@
 import { useGame } from '@/context/GameContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import SoundManager from '@/lib/sounds';
 
 const AvatarSelection = () => {
   const { players, selectCurrentPlayer } = useGame();
+
+  const handlePlayerSelect = (playerId: string) => {
+    SoundManager.playSound('click');
+    selectCurrentPlayer(playerId);
+  };
 
   return (
     <Card className="w-full max-w-xl mx-auto animate-scale-up">
@@ -18,7 +24,7 @@ const AvatarSelection = () => {
           {players.map((player) => (
             <Button
               key={player.id}
-              onClick={() => selectCurrentPlayer(player.id)}
+              onClick={() => handlePlayerSelect(player.id)}
               className="flex flex-col items-center p-8 h-auto"
               style={{ backgroundColor: player.avatar.backgroundColor, color: '#333' }}
             >

@@ -1,15 +1,21 @@
-
-import React, { useEffect } from 'react';  // Explicitly import React and useEffect
+import React, { useEffect } from 'react';
 import { useGame } from '@/context/GameContext';
 import AvatarSelection from './AvatarSelection';
 import TaskList from './TaskList';
 import FamilyProgress from './FamilyProgress';
 import WinnerCelebration from './WinnerCelebration';
 import { Button } from '@/components/ui/button';
+import SoundManager from '@/lib/sounds';
 
 const GameContainer = () => {
   const { showPlayerSelection, players, currentPlayer, resetGame, winner, setShowPlayerSelection, syncFromLocalStorage } = useGame();
   
+  // Preload sounds and play intro music on mount
+  useEffect(() => {
+    SoundManager.preloadSounds();
+    SoundManager.playIntroMusic();
+  }, []);
+
   // Regular sync for multiplayer - every 5 seconds check for updates from other browsers
   useEffect(() => {
     const intervalId = setInterval(() => {

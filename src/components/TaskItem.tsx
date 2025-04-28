@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { useGame } from '@/context/GameContext';
 import { Task } from '@/lib/gameData';
+import SoundManager from '@/lib/sounds';
 
 interface TaskItemProps {
   task: Task;
@@ -18,9 +19,8 @@ const TaskItem = ({ task }: TaskItemProps) => {
     setIsAnimating(true);
     completeTask(task.id);
     
-    // Play cheerful completion sound
-    const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3');
-    audio.play().catch(err => console.log('Audio play failed:', err));
+    // Play task completion sound
+    SoundManager.playSound('taskComplete');
     
     // Reset animation state after animation completes
     setTimeout(() => {

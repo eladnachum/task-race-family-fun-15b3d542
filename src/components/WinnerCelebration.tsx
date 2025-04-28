@@ -1,7 +1,7 @@
-
 import { useEffect, useState } from 'react';
 import { useGame } from '@/context/GameContext';
 import { Button } from '@/components/ui/button';
+import SoundManager from '@/lib/sounds';
 
 interface Confetti {
   id: number;
@@ -22,6 +22,9 @@ const WinnerCelebration = () => {
   
   useEffect(() => {
     if (!winner) return;
+    
+    // Play victory sound when winner is determined
+    SoundManager.playSound('victory');
     
     // Create confetti pieces
     const newConfetti = Array.from({ length: 100 }, (_, i) => ({
