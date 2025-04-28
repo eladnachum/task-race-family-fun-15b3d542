@@ -20,7 +20,7 @@ class SoundManager {
       audio.src = url;
       audio.preload = 'auto';
       
-      // Create a "loading" promise for this audio element
+      // Force load the audio
       audio.load();
       
       this.audioElements[key] = audio;
@@ -38,17 +38,34 @@ class SoundManager {
       this.preloadSounds();
     }
     
-    const audio = this.audioElements[soundName];
-    if (audio) {
+    try {
       // Create a new audio element each time to allow for overlapping sounds
-      const tempAudio = new Audio(audio.src);
+      const tempAudio = new Audio(SOUND_URLS[soundName]);
       tempAudio.volume = soundName === 'intro' ? 0.5 : 0.8;
       
+      // Play with a promise and catch any errors
       tempAudio.play()
-        .then(() => console.log(`Playing sound: ${soundName}`))
-        .catch(err => console.error(`Audio play failed for ${soundName}:`, err));
-    } else {
-      console.warn(`Sound ${soundName} not found`);
+        .catch(err => {
+          console.error(`Audio play failed for ${soundName}:`, err);
+          
+          // Fallback to native browser audio API as alternative
+          if (window.AudioContext || window["webkitAudioContext"]) {
+            try {
+              const AudioContextClass = window.AudioContext || window["webkitAudioContext"];
+              const audioCtx = new AudioContextClass();
+              const oscillator = audioCtx.createOscillator();
+              oscillator.type = 'sine';
+              oscillator.frequency.setValueAtTime(soundName === 'taskComplete' ? 800 : 500, audioCtx.currentTime);
+              oscillator.connect(audioCtx.destination);
+              oscillator.start();
+              oscillator.stop(audioCtx.currentTime + 0.1);
+            } catch (e) {
+              console.warn('Fallback audio also failed');
+            }
+          }
+        });
+    } catch (err) {
+      console.error(`Failed to create audio for ${soundName}:`, err);
     }
   }
 
@@ -60,19 +77,27 @@ class SoundManager {
       this.preloadSounds();
     }
     
-    // Create a new audio for intro to avoid issues with reuse
-    const tempAudio = new Audio(SOUND_URLS.intro);
-    tempAudio.volume = 0.5; // Lower volume for background music
-    
-    tempAudio.play()
-      .then(() => console.log('Playing intro music'))
-      .catch(err => console.error('Intro music play failed:', err));
-    
-    // Stop after 3 seconds
-    setTimeout(() => {
-      tempAudio.pause();
-      tempAudio.currentTime = 0;
-    }, 3000);
+    try {
+      // Create a new audio for intro to avoid issues with reuse
+      const tempAudio = new Audio(SOUND_URLS.intro);
+      tempAudio.volume = 0.5; // Lower volume for background music
+      
+      tempAudio.play()
+        .then(() => {
+          console.log('Playing intro music');
+          // Stop after 3 seconds
+          setTimeout(() => {
+            tempAudio.pause();
+            tempAudio.currentTime = 0;
+          }, 3000);
+        })
+        .catch(err => {
+          console.error('Intro music play failed:', err);
+          // No fallback for intro music
+        });
+    } catch (err) {
+      console.error('Failed to create intro music:', err);
+    }
   }
   
   static toggleMute() {

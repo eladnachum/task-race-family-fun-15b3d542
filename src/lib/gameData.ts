@@ -69,7 +69,11 @@ export const defaultTasks: Task[] = [
 
 // Helper function to deep clone tasks array
 const cloneTasks = (): Task[] => {
-  return defaultTasks.map(task => ({...task}));
+  return defaultTasks.map(task => ({
+    id: task.id,
+    title: task.title,
+    completed: false
+  }));
 };
 
 // The fixed set of family members
@@ -136,11 +140,11 @@ export const syncPlayerTasks = (savedPlayers: Player[]): Player[] => {
     if (savedPlayer) {
       return {
         ...defaultPlayer,
-        tasks: savedPlayer.tasks,
+        tasks: savedPlayer.tasks.map(task => ({...task})), // Deep clone the tasks
         isWinner: savedPlayer.isWinner
       };
     }
     
-    return defaultPlayer;
+    return {...defaultPlayer, tasks: cloneTasks()}; // Ensure we're getting a fresh copy
   });
 };

@@ -1,6 +1,8 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Avatar, Player, Task, avatars, familyMembers, syncPlayerTasks, checkWinner } from '@/lib/gameData';
 import { toast } from '@/components/ui/sonner';
+import SoundManager from '@/lib/sounds';
 
 interface GameContextType {
   players: Player[];
@@ -26,7 +28,7 @@ const STORAGE_KEYS = {
 };
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [players, setPlayers] = useState<Player[]>(familyMembers);
+  const [players, setPlayers] = useState<Player[]>([...familyMembers]); // Create a fresh copy
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [showPlayerSelection, setShowPlayerSelection] = useState(true);
   const [isGameActive, setIsGameActive] = useState(true);
@@ -48,18 +50,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (err) {
         console.error('Error parsing stored players:', err);
         // Fallback to default players
-        setPlayers(familyMembers);
+        setPlayers([...familyMembers]);
       }
     }
     
+    // Load current player after players are set
     if (storedCurrentPlayer) {
       try {
         const playerId = JSON.parse(storedCurrentPlayer);
-        const player = players.find(p => p.id === playerId);
-        if (player) {
-          setCurrentPlayer(player);
-          setShowPlayerSelection(false);
-        }
+        // We need to defer this to ensure players are loaded first
+        setTimeout(() => {
+          const player = players.find(p => p.id === playerId);
+          if (player) {
+            setCurrentPlayer({...player}); // Use deep copy to avoid reference issues
+            setShowPlayerSelection(false);
+          }
+        }, 0);
       } catch (err) {
         console.error('Error parsing current player:', err);
       }
@@ -70,15 +76,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     if (storedWinner) {
-      setWinner(JSON.parse(storedWinner));
+      try {
+        setWinner(JSON.parse(storedWinner));
+      } catch (err) {
+        console.error('Error parsing winner:', err);
+        setWinner(null);
+      }
     }
-    
-    // Set up polling to sync data between browsers
-    const syncInterval = setInterval(syncFromLocalStorage, 2000);
-    
-    return () => {
-      clearInterval(syncInterval);
-    };
   }, []);
   
   // Save players to localStorage whenever they change
@@ -124,8 +128,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsGameActive(false);
         
         // Play victory fanfare sound
-        const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-winning-chimes-2015.mp3');
-        audio.play().catch(err => console.log('Audio play failed:', err));
+        SoundManager.playSound('victory');
         
         toast(`${gameWinner.name} wins the Morning Tasks Race! 🎉`, {
           description: "All tasks completed! Great job!"
@@ -152,7 +155,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               hasChanges = true;
               return {
                 ...currentPlayer,
-                tasks: storedPlayer.tasks,
+                tasks: storedPlayer.tasks.map(task => ({...task})), // Deep clone tasks
                 isWinner: storedPlayer.isWinner
               };
             }
@@ -167,7 +170,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (currentPlayer) {
             const updatedCurrentPlayer = updatedPlayers.find(p => p.id === currentPlayer.id) || null;
             if (updatedCurrentPlayer) {
-              setCurrentPlayer(updatedCurrentPlayer);
+              setCurrentPlayer({...updatedCurrentPlayer}); // Deep copy
             }
           }
         }
@@ -185,13 +188,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const selectCurrentPlayer = (playerId: string) => {
-    const player = players.find(p => p.id === playerId) || null;
-    setCurrentPlayer(player);
-    setShowPlayerSelection(false);
+    // Find player by ID and create a deep copy to avoid reference issues
+    const selectedPlayer = players.find(p => p.id === playerId);
     
-    toast(`Selected ${player?.name}`, {
-      description: "Complete your tasks as fast as you can!"
-    });
+    if (selectedPlayer) {
+      // Create a fresh copy to avoid reference issues
+      const playerCopy = {
+        ...selectedPlayer,
+        tasks: selectedPlayer.tasks.map(task => ({...task}))
+      };
+      
+      setCurrentPlayer(playerCopy);
+      setShowPlayerSelection(false);
+      
+      toast(`Selected ${playerCopy.name}`, {
+        description: "Complete your tasks as fast as you can!"
+      });
+      
+      // Play click sound
+      SoundManager.playSound('click');
+    } else {
+      console.error(`Player with ID ${playerId} not found`);
+    }
   };
 
   const completeTask = (taskId: string) => {
@@ -219,8 +237,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentPlayer(updatedPlayer);
     
     // Play sound effect for task completion
-    const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3');
-    audio.play().catch(err => console.log('Audio play failed', err));
+    SoundManager.playSound('taskComplete');
   };
 
   const resetGame = () => {
