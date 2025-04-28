@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Avatar, Player, Task, avatars, familyMembers, syncPlayerTasks, checkWinner } from '@/lib/gameData';
 import { toast } from '@/components/ui/sonner';
@@ -234,6 +233,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPlayers(resetPlayers);
     setWinner(null);
     setIsGameActive(true);
+    setCurrentPlayer(null);
+    setShowPlayerSelection(true);
     
     toast("Game Reset! Ready, Set, Go!", {
       description: "Everyone's tasks have been reset. Good luck!"
