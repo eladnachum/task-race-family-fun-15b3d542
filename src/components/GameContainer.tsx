@@ -19,12 +19,14 @@ const GameContainer = () => {
     return () => clearInterval(intervalId);
   }, [syncFromLocalStorage]);
   
-  // Show player selection when game is reset or completed
+  // Show player selection when game is completely reset or when there's a winner
   useEffect(() => {
-    if (winner || !players.some(p => p.tasks.some(t => t.completed))) {
+    // Only force player selection when there's a winner or when no tasks are completed
+    // AND no player is selected (meaning we're in a fresh game state)
+    if ((winner || !players.some(p => p.tasks.some(t => t.completed))) && !currentPlayer) {
       setShowPlayerSelection(true);
     }
-  }, [winner, players, setShowPlayerSelection]);
+  }, [winner, players, setShowPlayerSelection, currentPlayer]);
   
   // Show player selection on initial load or when explicitly requested
   if (showPlayerSelection) {
